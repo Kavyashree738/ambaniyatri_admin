@@ -2,8 +2,14 @@ const router = require('express').Router();
 const upload = require('../middleware/gridfsUpload');
 const c = require('../controllers/documentsController');
 
+// 🔍 ROUTE ENTRY LOG
 router.post(
   '/upload',
+  (req, res, next) => {
+    console.log('🚀 /api/documents/upload HIT');
+    next();
+  },
+
   upload.fields([
     { name: 'driver_photo' },
     { name: 'aadhar_card' },
@@ -11,8 +17,16 @@ router.post(
     { name: 'vehicle_registration' },
     { name: 'pan_card' },
     { name: 'insurance' },
-    { name: 'bank_passbook' }
+    { name: 'bank_passbook' },
   ]),
+
+  (req, res, next) => {
+    console.log('📦 Multer finished');
+    console.log('📁 req.files:', Object.keys(req.files || {}));
+    console.log('📦 req.body:', req.body);
+    next();
+  },
+
   c.uploadDocuments
 );
 
