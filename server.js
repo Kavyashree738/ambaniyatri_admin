@@ -4,8 +4,10 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const { GridFSBucket } = require('mongodb');
 const connectDB = require('./config/db');
-
+const mongodb = require('mongodb');
 console.log('🟢 server.js loaded');
+console.log('👉 Mongoose version:', mongoose.version);
+console.log('👉 MongoDB driver version:', mongodb.version || mongodb.MongoClient?.prototype?.topology?.s?.options?.metadata?.driver?.version);
 
 const app = express();
 
