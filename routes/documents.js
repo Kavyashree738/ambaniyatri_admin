@@ -2,24 +2,29 @@ const router = require('express').Router();
 const upload = require('../middleware/gridfsUpload');
 const c = require('../controllers/documentsController');
 
+/**
+ * ==============================
+ * 📤 UPLOAD DOCUMENTS (POST)
+ * ==============================
+ */
 router.post(
   '/upload',
 
-  // 🔴 STEP 1: Route hit
+  // STEP 1: Route hit
   (req, res, next) => {
     console.log('==============================');
-    console.log('🚀 STEP 1: /api/documents/upload HIT');
-    console.log('➡️ Headers:', req.headers['content-type']);
+    console.log('🚀 POST /api/documents/upload HIT');
+    console.log('➡️ Content-Type:', req.headers['content-type']);
     next();
   },
 
-  // 🔴 STEP 2: Before multer
+  // STEP 2: Before multer
   (req, res, next) => {
     console.log('🚀 STEP 2: Entering multer');
     next();
   },
 
-  // 🔴 STEP 3: Multer (GridFS)
+  // STEP 3: Multer (GridFS)
   upload.fields([
     { name: 'driver_photo' },
     { name: 'aadhar_card' },
@@ -30,11 +35,11 @@ router.post(
     { name: 'bank_passbook' },
   ]),
 
-  // 🔴 STEP 4: After multer
+  // STEP 4: After multer
   (req, res, next) => {
     console.log('🚀 STEP 4: Multer finished');
-    console.log('📁 req.files keys:', Object.keys(req.files || {}));
-    console.log('📦 req.body:', req.body);
+    console.log('📁 Files received:', Object.keys(req.files || {}));
+    console.log('📦 Body received:', req.body);
 
     if (!req.files || Object.keys(req.files).length === 0) {
       console.warn('⚠️ NO FILES RECEIVED BY MULTER');
@@ -43,17 +48,44 @@ router.post(
     next();
   },
 
-  // 🔴 STEP 5: Controller entry
+  // STEP 5: Before controller
   (req, res, next) => {
-    console.log('🚀 STEP 5: Entering controller');
+    console.log('🚀 STEP 5: Passing control to controller');
     next();
   },
 
+  // STEP 6: Controller
   c.uploadDocuments
 );
 
-router.get('/status/:userId', c.getStatus);
-router.get('/:userId', c.getDocuments);
-router.patch('/verify/:userId', c.verifyDriver);
+/**
+ * ==============================
+ * 🔍 CHECK VERIFICATION STATUS
+ * ==============================
+ */
+router.get('/status/:userId', (req, res, next) => {
+  console.log('🔍 GET /api/documents/status/', req.params.userId);
+  next();
+}, c.getStatus);
+
+/**
+ * ==============================
+ * 📄 FETCH DOCUMENTS (MUST BE LAST)
+ * ==============================
+ */
+router.get('/:userId', (req, res, next) => {
+  console.log('📄 GET /api/documents/', req.params.userId);
+  next();
+}, c.getDocuments);
+
+/**
+ * ==============================
+ * ✅ ADMIN VERIFY
+ * ==============================
+ */
+router.patch('/verify/:userId', (req, res, next) => {
+  console.log('✅ PATCH /api/documents/verify/', req.params.userId);
+  next();
+}, c.verifyDriver);
 
 module.exports = router;
