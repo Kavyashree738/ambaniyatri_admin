@@ -25,6 +25,8 @@ app.use((req, res, next) => {
 
 console.log('🟢 Mounting /api/documents routes');
 app.use('/api/documents', require('./routes/documents'));
+app.use('/api/admin', require('./routes/admin'));
+
 
 let gfs;
 mongoose.connection.once('open', () => {

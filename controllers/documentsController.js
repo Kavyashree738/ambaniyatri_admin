@@ -85,7 +85,7 @@ exports.getStatus = async (req, res) => {
 
     return res.json({
       verified: doc.status === 'approved',
-      status: doc.status, 
+      status: doc.status,
     });
   } catch (e) {
     console.error('🔥 STATUS CHECK ERROR:', e);
