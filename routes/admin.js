@@ -86,6 +86,43 @@ router.get('/driver/:userId', adminAuth, async (req, res) => {
 });
 
 
+router.get('/public/documents/:filename', (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+
+  const { filename } = req.params;
+
+  console.log('🟢 [PUBLIC FILE] Request received');
+  console.log('📄 [PUBLIC FILE] Requested filename:', filename);
+
+  const filePath = path.join(
+    process.cwd(),
+    'uploads',
+    filename
+  );
+
+  console.log('📁 [PUBLIC FILE] Resolved file path:', filePath);
+
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    console.log('❌ [PUBLIC FILE] File NOT FOUND');
+    return res.status(404).send('File not found');
+  }
+
+  console.log('✅ [PUBLIC FILE] File exists, sending file...');
+
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.error('🔥 [PUBLIC FILE] Error while sending file:', err);
+      return res.status(500).send('Error serving file');
+    }
+
+    console.log('📤 [PUBLIC FILE] File sent successfully');
+  });
+});
+
+
+
 
 
 module.exports = router;
