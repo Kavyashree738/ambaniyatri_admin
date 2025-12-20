@@ -97,41 +97,77 @@ router.get('/driver/:userId', adminAuth, async (req, res) => {
  * NO adminAuth
  */
 router.get('/public/documents/:filename', async (req, res) => {
+  console.log('────────────────────────────────────────');
+  console.log('🟢 [GRIDFS] Incoming request');
+  console.log('🌐 URL:', req.originalUrl);
+
   try {
     const { filename } = req.params;
+    console.log('📄 [GRIDFS] Requested filename:', filename);
 
-    console.log('🟢 [GRIDFS DOWNLOAD] filename:', filename);
-
+    // 1️⃣ Mongo DB connection
     const db = mongoose.connection.db;
+    if (!db) {
+      console.error('❌ [GRIDFS] MongoDB not connected');
+      return res.status(500).json({ message: 'DB not connected' });
+    }
+    console.log('✅ [GRIDFS] MongoDB connection OK');
 
+    // 2️⃣ Create GridFS bucket
     const bucket = new mongoose.mongo.GridFSBucket(db, {
-      bucketName: 'documents', // MUST match multer bucketName
+      bucketName: 'documents',
     });
+    console.log('🪣 [GRIDFS] Bucket initialized: documents');
 
+    // 3️⃣ Check file existence
     const files = await db
       .collection('documents.files')
       .find({ filename })
       .toArray();
 
+    console.log('📂 [GRIDFS] Files found:', files.length);
+
     if (!files || files.length === 0) {
-      console.log('❌ [GRIDFS DOWNLOAD] File not found in MongoDB');
+      console.warn('⚠️ [GRIDFS] File NOT found in MongoDB');
       return res.status(404).json({ message: 'File not found' });
     }
 
-    res.set(
-      'Content-Type',
-      files[0].contentType || 'application/octet-stream'
-    );
+    const file = files[0];
+    console.log('🧾 [GRIDFS] File metadata:', {
+      filename: file.filename,
+      contentType: file.contentType,
+      length: file.length,
+    });
 
-    bucket.openDownloadStreamByName(filename).pipe(res);
+    // 4️⃣ Response headers
+    res.set({
+      'Content-Type': file.contentType || 'image/jpeg',
+      'Content-Disposition': 'inline',
+      'Cache-Control': 'public, max-age=31536000',
+    });
 
-    console.log('✅ [GRIDFS DOWNLOAD] Streaming from MongoDB');
+    console.log('📤 [GRIDFS] Response headers set (inline image)');
+
+    // 5️⃣ Stream file
+    const downloadStream = bucket.openDownloadStreamByName(filename);
+
+    downloadStream.on('error', (err) => {
+      console.error('🔥 [GRIDFS] Stream error:', err);
+      res.sendStatus(500);
+    });
+
+    downloadStream.on('end', () => {
+      console.log('✅ [GRIDFS] Streaming completed');
+    });
+
+    console.log('🚀 [GRIDFS] Streaming file...');
+    downloadStream.pipe(res);
+
   } catch (err) {
-    console.error('🔥 [GRIDFS DOWNLOAD] Error:', err);
+    console.error('🔥 [GRIDFS] Unexpected error:', err);
     res.status(500).json({ message: 'Error downloading file' });
   }
 });
-
 
 
 
