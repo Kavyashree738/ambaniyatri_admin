@@ -176,49 +176,34 @@ router.get('/public/documents/:filename', async (req, res) => {
 router.get('/public/driver-photo/:userId', async (req, res) => {
   console.log('────────────────────────────────────────');
   console.log('🟢 [DRIVER PHOTO] ROUTE HIT');
-  console.log('🌐 URL:', req.originalUrl);
   console.log('🆔 userId:', req.params.userId);
 
   try {
     const { userId } = req.params;
 
-    console.log('🔍 Searching MongoDB Document collection...');
     const doc = await Document.findOne({ userId });
 
     if (!doc) {
-      console.log('❌ No document found for userId:', userId);
+      console.log('❌ No document found');
       return res.status(404).json({ message: 'Driver not found' });
     }
 
-    console.log('✅ Document found');
-    console.log('📄 Full document:', JSON.stringify(doc, null, 2));
-
-    // Try all possible keys safely
-    const photo =
-      doc.driver_photo ||
-      doc.photo ||
-      doc.profile_photo ||
-      doc.documents?.driver_photo ||
-      null;
+    const photo = doc.files?.driver_photo;
 
     console.log('🖼️ Extracted photo filename:', photo);
 
     if (!photo) {
-      console.log('❌ Photo field exists but is EMPTY or UNDEFINED');
       return res.status(404).json({ message: 'Photo not found' });
     }
-
-    console.log('✅ Returning photo filename');
-    console.log('────────────────────────────────────────');
 
     return res.json({ photo });
 
   } catch (err) {
-    console.error('🔥 [DRIVER PHOTO] UNEXPECTED ERROR');
-    console.error(err);
+    console.error('🔥 driver-photo error:', err);
     return res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 
 
