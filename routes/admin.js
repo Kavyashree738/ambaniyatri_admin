@@ -95,27 +95,41 @@ router.get('/driver/:userId', adminAuth, async (req, res) => {
  * 🔓 PUBLIC: Serve uploaded documents/images
  * NO adminAuth
  */
-router.get('/public/documents/:filename', (req, res) => {
-  const path = require('path');
-  const fs = require('fs');
+router.get('/public/documents/:filename', async (req, res) => {
+  try {
+    const { filename } = req.params;
 
-  const { filename } = req.params;
+    console.log('🟢 [GRIDFS DOWNLOAD] filename:', filename);
 
-  console.log('🟢 [PUBLIC DOCUMENT] filename:', filename);
+    const db = mongoose.connection.db;
 
-  const filePath = path.join(process.cwd(), 'uploads', filename);
+    const bucket = new mongoose.mongo.GridFSBucket(db, {
+      bucketName: 'documents', // MUST match multer bucketName
+    });
 
-  console.log('📁 [PUBLIC DOCUMENT] Resolved path:', filePath);
+    const files = await db
+      .collection('documents.files')
+      .find({ filename })
+      .toArray();
 
-  if (!fs.existsSync(filePath)) {
-    console.log('❌ [PUBLIC DOCUMENT] File not found');
-    return res.status(404).json({ message: 'File not found' });
+    if (!files || files.length === 0) {
+      console.log('❌ [GRIDFS DOWNLOAD] File not found in MongoDB');
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    res.set(
+      'Content-Type',
+      files[0].contentType || 'application/octet-stream'
+    );
+
+    bucket.openDownloadStreamByName(filename).pipe(res);
+
+    console.log('✅ [GRIDFS DOWNLOAD] Streaming from MongoDB');
+  } catch (err) {
+    console.error('🔥 [GRIDFS DOWNLOAD] Error:', err);
+    res.status(500).json({ message: 'Error downloading file' });
   }
-
-  console.log('✅ [PUBLIC DOCUMENT] Sending file');
-  res.sendFile(filePath);
 });
-
 
 
 
