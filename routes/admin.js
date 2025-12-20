@@ -91,36 +91,29 @@ router.get('/driver/:userId', adminAuth, async (req, res) => {
  * NO Firebase
  * NO adminAuth
  */
-router.get('/public/driver-photo/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
+/**
+ * 🔓 PUBLIC: Serve uploaded documents/images
+ * NO adminAuth
+ */
+router.get('/public/documents/:filename', (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
 
-    console.log('🟢 [PUBLIC PHOTO] userId:', userId);
+  const { filename } = req.params;
 
-    const doc = await Document.findOne({ userId });
+  console.log('🟢 [PUBLIC DOCUMENT] filename:', filename);
 
-    if (!doc) {
-      console.log('❌ [PUBLIC PHOTO] Driver not found in Mongo');
-      return res.json({ photo: null });
-    }
+  const filePath = path.join(process.cwd(), 'uploads', filename);
 
-    const photo = doc.files?.driver_photo;
+  console.log('📁 [PUBLIC DOCUMENT] Resolved path:', filePath);
 
-    if (!photo) {
-      console.log('⚠️ [PUBLIC PHOTO] driver_photo not uploaded');
-      return res.json({ photo: null });
-    }
-
-    console.log('✅ [PUBLIC PHOTO] Found photo:', photo);
-
-    res.json({
-      photo, // only filename
-    });
-
-  } catch (err) {
-    console.error('🔥 [PUBLIC PHOTO] Error:', err);
-    res.status(500).json({ message: 'Server error' });
+  if (!fs.existsSync(filePath)) {
+    console.log('❌ [PUBLIC DOCUMENT] File not found');
+    return res.status(404).json({ message: 'File not found' });
   }
+
+  console.log('✅ [PUBLIC DOCUMENT] Sending file');
+  res.sendFile(filePath);
 });
 
 
