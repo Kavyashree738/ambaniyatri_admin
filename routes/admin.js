@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const adminAuth = require('../middleware/adminAuth');
 const Document = require('../models/Document');
+const mongoose = require('mongoose');
 
 /**
  * 🔑 ADMIN LOGIN CHECK
