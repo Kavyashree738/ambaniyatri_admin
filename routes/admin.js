@@ -86,39 +86,41 @@ router.get('/driver/:userId', adminAuth, async (req, res) => {
 });
 
 
-router.get('/public/documents/:filename', (req, res) => {
-  const path = require('path');
-  const fs = require('fs');
+/**
+ * 🔓 PUBLIC: Get driver photo from MongoDB ONLY
+ * NO Firebase
+ * NO adminAuth
+ */
+router.get('/public/driver-photo/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
 
-  const { filename } = req.params;
+    console.log('🟢 [PUBLIC PHOTO] userId:', userId);
 
-  console.log('🟢 [PUBLIC FILE] Request received');
-  console.log('📄 [PUBLIC FILE] Requested filename:', filename);
+    const doc = await Document.findOne({ userId });
 
-  const filePath = path.join(
-    process.cwd(),
-    'uploads',
-    filename
-  );
-
-  console.log('📁 [PUBLIC FILE] Resolved file path:', filePath);
-
-  // Check if file exists
-  if (!fs.existsSync(filePath)) {
-    console.log('❌ [PUBLIC FILE] File NOT FOUND');
-    return res.status(404).send('File not found');
-  }
-
-  console.log('✅ [PUBLIC FILE] File exists, sending file...');
-
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      console.error('🔥 [PUBLIC FILE] Error while sending file:', err);
-      return res.status(500).send('Error serving file');
+    if (!doc) {
+      console.log('❌ [PUBLIC PHOTO] Driver not found in Mongo');
+      return res.json({ photo: null });
     }
 
-    console.log('📤 [PUBLIC FILE] File sent successfully');
-  });
+    const photo = doc.files?.driver_photo;
+
+    if (!photo) {
+      console.log('⚠️ [PUBLIC PHOTO] driver_photo not uploaded');
+      return res.json({ photo: null });
+    }
+
+    console.log('✅ [PUBLIC PHOTO] Found photo:', photo);
+
+    res.json({
+      photo, // only filename
+    });
+
+  } catch (err) {
+    console.error('🔥 [PUBLIC PHOTO] Error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 
