@@ -16,6 +16,11 @@ const DocumentSchema = new mongoose.Schema(
       bank_passbook: String
     },
 
+    selfieUpdatedAt: {
+      type: Date
+    },
+
+
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],
