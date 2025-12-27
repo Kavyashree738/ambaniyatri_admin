@@ -70,13 +70,21 @@ router.get('/status/:userId', (req, res, next) => {
 
 /**
  * ==============================
- * 📄 FETCH DOCUMENTS (MUST BE LAST)
+ * 📸 CHECK SELFIE STATUS (7 DAYS)
  * ==============================
  */
-router.get('/:userId', (req, res, next) => {
-  console.log('📄 GET /api/documents/', req.params.userId);
-  next();
-}, c.getDocuments);
+router.get('/selfie-status/:userId', c.checkSelfieStatus);
+
+/**
+ * ==============================
+ * 📤 UPLOAD SELFIE ONLY (GridFS)
+ * ==============================
+ */
+router.post(
+  '/selfie-upload',
+  upload.single('driver_photo'),
+  c.uploadSelfie
+);
 
 /**
  * ==============================
@@ -87,5 +95,15 @@ router.patch('/verify/:userId', (req, res, next) => {
   console.log('✅ PATCH /api/documents/verify/', req.params.userId);
   next();
 }, c.verifyDriver);
+
+/**
+ * ==============================
+ * 📄 FETCH DOCUMENTS (MUST BE LAST)
+ * ==============================
+ */
+router.get('/:userId', (req, res, next) => {
+  console.log('📄 GET /api/documents/', req.params.userId);
+  next();
+}, c.getDocuments);
 
 module.exports = router;
