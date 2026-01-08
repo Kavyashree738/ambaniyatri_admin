@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const upload = require('../middleware/gridfsUpload');
 const c = require('../controllers/documentsController');
+const mongoose = require('mongoose');
 
 /**
  * ==============================
@@ -95,6 +96,44 @@ router.patch('/verify/:userId', (req, res, next) => {
   console.log('✅ PATCH /api/documents/verify/', req.params.userId);
   next();
 }, c.verifyDriver);
+
+
+/**
+ * ==============================
+ * 📂 SERVE FILE FROM GRIDFS
+ * ==============================
+ * GET /api/files/:filename
+ */
+router.get('/files/:filename', async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    console.log('📂 GET FILE:', filename);
+
+    const db = mongoose.connection.db;
+
+    // ⚠️ bucket name MUST match multer config
+    const bucket = new mongoose.mongo.GridFSBucket(db, {
+      bucketName: 'uploads',
+    });
+
+    const file = await db
+      .collection('uploads.files')
+      .findOne({ filename });
+
+    if (!file) {
+      console.warn('❌ File not found:', filename);
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    res.set('Content-Type', file.contentType || 'image/jpeg');
+
+    const stream = bucket.openDownloadStreamByName(filename);
+    stream.pipe(res);
+  } catch (e) {
+    console.error('🔥 File stream error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
 
 /**
  * ==============================
