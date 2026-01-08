@@ -112,13 +112,14 @@ router.get('/files/:filename', async (req, res) => {
     const db = mongoose.connection.db;
 
     // ⚠️ bucket name MUST match multer config
-    const bucket = new mongoose.mongo.GridFSBucket(db, {
-      bucketName: 'uploads',
-    });
+  const bucket = new mongoose.mongo.GridFSBucket(db, {
+  bucketName: 'documents',
+});
 
-    const file = await db
-      .collection('uploads.files')
-      .findOne({ filename });
+const file = await db
+  .collection('documents.files')
+  .findOne({ filename });
+
 
     if (!file) {
       console.warn('❌ File not found:', filename);
