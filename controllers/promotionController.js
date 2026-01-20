@@ -65,30 +65,6 @@ exports.getActivePromotions = async (req, res) => {
 /* ==============================
    ▶ ADD YOUTUBE PROMOTION
 ================================ */
-exports.addYoutubePromotion = async (req, res) => {
-  try {
-    const { title, url } = req.body;
-
-    if (!url) {
-      return res.status(400).json({ message: "YouTube URL required" });
-    }
-
-    const promo = await Promotion.create({
-      title,
-      type: "youtube",
-      url,
-      active: true,
-    });
-
-    console.log("✅ YouTube promotion added:", promo._id);
-
-    res.json({ success: true, data: promo });
-  } catch (e) {
-    console.error("🔥 YOUTUBE ERROR:", e);
-    res.status(500).json({ message: e.message });
-  }
-};
-
 
 /* ==============================
    🗑️ DELETE PROMOTION
@@ -131,6 +107,92 @@ exports.deletePromotion = async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     console.error('🔥 DELETE ERROR:', e);
+    res.status(500).json({ message: e.message });
+  }
+};
+
+function extractYoutubeUrl(input) {
+  console.log("🔍 extractYoutubeUrl input:", input);
+
+  if (!input) {
+    console.log("❌ No input received");
+    return null;
+  }
+
+  // If iframe pasted
+  if (input.includes("<iframe")) {
+    console.log("📦 Detected iframe embed");
+
+    const match = input.match(/src="([^"]+)"/);
+
+    if (!match) {
+      console.log("❌ iframe src not found");
+      return null;
+    }
+
+    let src = match[1];
+    console.log("🎯 iframe src extracted:", src);
+
+    if (src.includes("/embed/")) {
+      const id = src.split("/embed/")[1].split("?")[0];
+      const finalUrl = `https://www.youtube.com/watch?v=${id}`;
+      console.log("🔁 Converted embed → watch url:", finalUrl);
+      return finalUrl;
+    }
+
+    return src;
+  }
+
+  // Normal YouTube URL
+  if (input.includes("youtube.com") || input.includes("youtu.be")) {
+    console.log("🎬 Detected normal YouTube URL");
+    return input;
+  }
+
+  console.log("❌ Not a valid YouTube input");
+  return null;
+}
+
+
+exports.addYoutubePromotion = async (req, res) => {
+  console.log("========================================");
+  console.log("▶ ADD YOUTUBE PROMOTION API CALLED");
+  console.log("➡️ req.body:", req.body);
+
+  try {
+    const { title, url } = req.body;
+
+    if (!url) {
+      console.log("❌ Missing URL field");
+      return res.status(400).json({ message: "YouTube URL or iframe required" });
+    }
+
+    const cleanUrl = extractYoutubeUrl(url);
+
+    if (!cleanUrl) {
+      console.log("❌ Failed to extract YouTube URL");
+      return res.status(400).json({ message: "Invalid YouTube URL or iframe" });
+    }
+
+    console.log("✅ Final YouTube URL to save:", cleanUrl);
+
+    const promo = await Promotion.create({
+      title,
+      type: "youtube",
+      url: cleanUrl,
+      active: true,
+    });
+
+    console.log("🎉 YouTube promotion saved to DB");
+    console.log("📦 Promo ID:", promo._id);
+    console.log("📦 Promo Data:", promo);
+
+    res.json({
+      success: true,
+      data: promo,
+    });
+  } catch (e) {
+    console.error("🔥 YOUTUBE SAVE ERROR:", e);
     res.status(500).json({ message: e.message });
   }
 };
