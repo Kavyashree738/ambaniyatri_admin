@@ -7,7 +7,7 @@ const PromotionSchema = new mongoose.Schema({
   title: String,
   type: {
     type: String,
-    enum: ['image', 'video'],
+    enum: ['image', 'video','youtube'],
     required: true,
   },
   fileName: String,
@@ -18,4 +18,5 @@ const PromotionSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('Promotion', PromotionSchema);
+
 
