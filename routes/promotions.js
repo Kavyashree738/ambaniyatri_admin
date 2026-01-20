@@ -29,6 +29,16 @@ router.get(
   ctrl.getActivePromotions
 );
 
+router.post(
+  '/youtube',
+  (req, res, next) => {
+    console.log('➡️ POST /api/promotions/youtube');
+    next();
+  },
+  ctrl.addYoutubePromotion
+);
+
+
 /* ===============================
    🗑️ DELETE (🔥 THIS WAS MISSING)
 ================================ */
@@ -42,3 +52,4 @@ router.delete(
 );
 
 module.exports = router;
+
