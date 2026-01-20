@@ -63,6 +63,34 @@ exports.getActivePromotions = async (req, res) => {
 };
 
 /* ==============================
+   ▶ ADD YOUTUBE PROMOTION
+================================ */
+exports.addYoutubePromotion = async (req, res) => {
+  try {
+    const { title, url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ message: "YouTube URL required" });
+    }
+
+    const promo = await Promotion.create({
+      title,
+      type: "youtube",
+      url,
+      active: true,
+    });
+
+    console.log("✅ YouTube promotion added:", promo._id);
+
+    res.json({ success: true, data: promo });
+  } catch (e) {
+    console.error("🔥 YOUTUBE ERROR:", e);
+    res.status(500).json({ message: e.message });
+  }
+};
+
+
+/* ==============================
    🗑️ DELETE PROMOTION
 ================================ */
 exports.deletePromotion = async (req, res) => {
@@ -106,3 +134,4 @@ exports.deletePromotion = async (req, res) => {
     res.status(500).json({ message: e.message });
   }
 };
+
