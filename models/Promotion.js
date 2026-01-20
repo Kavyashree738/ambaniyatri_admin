@@ -11,9 +11,11 @@ const PromotionSchema = new mongoose.Schema({
     required: true,
   },
   fileName: String,
+  url: String, 
   active: { type: Boolean, default: true },
   order: { type: Number, default: 1 },
   createdAt: { type: Date, default: Date.now },
 });
 
 module.exports = mongoose.model('Promotion', PromotionSchema);
+
