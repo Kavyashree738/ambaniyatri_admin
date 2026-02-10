@@ -4,8 +4,10 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const { GridFSBucket } = require('mongodb');
 const mongodb = require('mongodb');
+const adminRoutes = require("./routes/admin.routes");
 const { monitorRideSafety } = require("./services/rideSafety.service");
 const connectDB = require('./config/db');
+
 
 console.log('🟢 server.js loaded');
 console.log('👉 Mongoose version:', mongoose.version);
