@@ -49,8 +49,8 @@ router.get('/driver/:userId', adminAuth, async (req, res) => {
     }
 
     // 2️⃣ Firebase Firestore profile (THIS IS THE FIX)
-    const admin = require('../config/firebaseAdmin');
-    const db = admin.firestore();
+    const { admin, db } = require('../config/firebaseAdmin');
+
 
     let profile = null;
 
