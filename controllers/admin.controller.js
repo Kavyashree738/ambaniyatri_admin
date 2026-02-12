@@ -24,8 +24,9 @@ exports.getDriversOnRide = async (req, res) => {
       console.log("Point Map →", x.point);
       console.log("GeoPoint →", x.point?.geopoint);
 
-      const lat = x.point?.geopoint?.latitude ?? null;
-      const lng = x.point?.geopoint?.longitude ?? null;
+      const lat = x.lat ?? x.point?.geopoint?.latitude ?? null;
+      const lng = x.lng ?? x.point?.geopoint?.longitude ?? null;
+
 
       console.log("Extracted Lat →", lat);
       console.log("Extracted Lng →", lng);
@@ -161,3 +162,4 @@ exports.getRideDetails = async (req, res) => {
     });
   }
 };
+
