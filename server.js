@@ -72,9 +72,6 @@ app.use('/api/media', require('./routes/media'));
 app.use("/api/admin", adminRoutes);
 
 
-setInterval(() => {
-  monitorRideSafety();
-}, 5000);
 
 /* ===============================
    📥 DOCUMENT FILE DOWNLOAD
