@@ -69,7 +69,7 @@ app.use('/api/admin', require('./routes/admin'));
 /* 🔥 PROMO ROUTES */
 app.use('/api/promotions', require('./routes/promotions'));
 app.use('/api/media', require('./routes/media'));
-app.use("/api/admin", adminRoutes);
+app.use("/api/adminrides", adminRoutes);
 
 
 setInterval(() => {
