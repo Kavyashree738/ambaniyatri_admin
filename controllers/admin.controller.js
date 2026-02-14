@@ -162,4 +162,58 @@ exports.getRideDetails = async (req, res) => {
     });
   }
 };
+exports.saveAdminToken = async (req, res) => {
+  try {
+    const { token } = req.body || {};
+
+    // 🔹 Validate token exists
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Token missing from request body",
+      });
+    }
+
+    // 🔹 Validate token type
+    if (typeof token !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Token must be a string",
+      });
+    }
+
+    // 🔹 Basic length validation (FCM tokens are usually 150+ chars)
+    if (token.length < 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid token format",
+      });
+    }
+
+    // 🔹 Save to Firestore
+    await db.collection("admin_tokens").doc(token).set(
+      {
+        createdAt: new Date(),
+        lastUpdated: new Date(),
+        userAgent: req.headers["user-agent"] || "unknown",
+        ip: req.ip || "unknown",
+      },
+      { merge: true }
+    );
+
+    return res.json({
+      success: true,
+      message: "Token stored successfully",
+    });
+
+  } catch (err) {
+    console.error("❌ Save Admin Token Error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 
