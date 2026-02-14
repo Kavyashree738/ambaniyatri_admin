@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const { GridFSBucket } = require('mongodb');
 const mongodb = require('mongodb');
 const adminRoutes = require("./routes/admin.routes");
-const { monitorRideSafety } = require("./services/rideSafety.service");
+const { startSafetyListener } = require("./services/rideSafety.service");
 const connectDB = require('./config/db');
 
 
@@ -46,6 +46,8 @@ let promoBucket;
 
 mongoose.connection.once('open', () => {
   console.log('🟢 MongoDB connection OPEN event fired');
+
+   startSafetyListener();
 
   documentsBucket = new GridFSBucket(mongoose.connection.db, {
     bucketName: 'documents',
