@@ -1,4 +1,5 @@
 const { db } = require("../config/firebaseAdmin");
+const { sendSafetyAlert } = require("./fcm.service");
 
 //
 // ===============================
@@ -45,10 +46,6 @@ async function monitorRideSafety() {
 
     console.log("📦 Active rides found:", ridesSnap.docs.length);
 
-    if (ridesSnap.empty) {
-      console.log("⚠ No STARTED rides found");
-    }
-
     for (const rideDoc of ridesSnap.docs) {
       const ride = rideDoc.data();
 
@@ -59,11 +56,10 @@ async function monitorRideSafety() {
         continue;
       }
 
-      console.log("👉 Fetching driver doc...");
-
-      const driverId = ride.accepted_by.id;
-
-      const driverDoc = await db.collection("drivers").doc(driverId).get();
+      const driverDoc = await db
+        .collection("drivers")
+        .doc(ride.accepted_by.id)
+        .get();
 
       if (!driverDoc.exists) {
         console.log("❌ Driver doc missing");
@@ -72,50 +68,62 @@ async function monitorRideSafety() {
 
       const driver = driverDoc.data();
 
-      console.log("📍 Driver data:", driver.point);
-
       const driverLat = driver.point?.geopoint?.latitude;
       const driverLng = driver.point?.geopoint?.longitude;
 
       const dropLat = ride.to?.point?.geopoint?.latitude;
       const dropLng = ride.to?.point?.geopoint?.longitude;
 
-      console.log("Driver GPS:", driverLat, driverLng);
-      console.log("Drop GPS:", dropLat, dropLng);
-
-      if (
-        driverLat == null ||
-        driverLng == null ||
-        dropLat == null ||
-        dropLng == null
-      ) {
+      if (!driverLat || !driverLng || !dropLat || !dropLng) {
         console.log("⚠ Missing GPS — skipping");
         continue;
       }
 
-      const distance = distanceMeters(driverLat, driverLng, dropLat, dropLng);
+      const distance = distanceMeters(
+        driverLat,
+        driverLng,
+        dropLat,
+        dropLng
+      );
 
       console.log("📏 Distance:", distance, "meters");
 
-      if (distance > 500) {
-        console.log("🚨 DISTANCE > 500m — SHOULD ALERT");
-
-        if (!ride.safety_flag) {
-          console.log("🔥 Writing safety flag to Firestore...");
-
-          await rideDoc.ref.update({
-            safety_flag: true,
-            safety_reason: "Driver deviated from drop",
-            safety_time: new Date(),
-          });
-
-          console.log("✅ Firestore updated!");
-        } else {
-          console.log("ℹ Already flagged — skipping write");
-        }
-      } else {
-        console.log("✅ Driver safe — within range");
+      if (distance <= 1000) {
+        console.log("✅ Driver safe");
+        continue;
       }
+
+      console.log("🚨 SAFETY ALERT CONDITION MET");
+
+      // =========================
+      // ALERT LIMIT LOGIC
+      // =========================
+      const alertCount = ride.safety_alert_count || 0;
+
+      console.log("🔢 Current alert count:", alertCount);
+
+      if (alertCount >= 2) {
+        console.log("⛔ Alert limit reached — skipping notification");
+        continue;
+      }
+
+      console.log("📢 Sending admin notification…");
+
+      await sendSafetyAlert(rideDoc.id);
+
+      console.log("✅ Notification sent");
+
+      // =========================
+      // Update Firestore
+      // =========================
+      await rideDoc.ref.update({
+        safety_flag: true,
+        safety_reason: "Driver deviated from drop",
+        safety_time: new Date(),
+        safety_alert_count: alertCount + 1,
+      });
+
+      console.log("🔥 Firestore updated with alert count");
     }
 
     console.log("\n🟢 SAFETY MONITOR FINISHED\n");
