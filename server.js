@@ -7,7 +7,7 @@ const mongodb = require('mongodb');
 const adminRoutes = require("./routes/admin.routes");
 const { monitorRideSafety } = require("./services/rideSafety.service");
 const connectDB = require('./config/db');
-
+const { monitorRideSafety } = require("./services/rideSafety.service");
 
 console.log('🟢 server.js loaded');
 console.log('👉 Mongoose version:', mongoose.version);
@@ -70,6 +70,11 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/promotions', require('./routes/promotions'));
 app.use('/api/media', require('./routes/media'));
 app.use("/api/admin", adminRoutes);
+
+
+setInterval(() => {
+  monitorRideSafety();
+}, 120000);
 
 
 
