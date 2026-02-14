@@ -19,16 +19,13 @@ function distanceMeters(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ✅ ADD: Track last alert time per ride to prevent duplicates
-const lastAlertTime = new Map();
-
 // ===============================
 // 🚨 REALTIME SAFETY CHECK
 // ===============================
 async function checkDriverSafety(driverId, driverData) {
   try {
     console.log(`\n🔍 Checking safety for driver: ${driverId}`);
-    
+
     const driverLat = driverData.point?.geopoint?.latitude;
     const driverLng = driverData.point?.geopoint?.longitude;
 
@@ -40,8 +37,6 @@ async function checkDriverSafety(driverId, driverData) {
     }
 
     const userRef = db.doc(`users/${driverId}`);
-    
-    console.log(`🔎 Looking for started rides for user ${driverId}...`);
 
     const rideSnap = await db
       .collection("rides")
@@ -50,26 +45,19 @@ async function checkDriverSafety(driverId, driverData) {
       .limit(1)
       .get();
 
-    console.log(`📦 Found ${rideSnap.docs.length} started ride(s)`);
-
     if (rideSnap.empty) {
-      console.log("⚠️ No started ride found for this driver");
+      console.log("⚠️ No started ride found");
       return;
     }
 
     const rideDoc = rideSnap.docs[0];
     const ride = rideDoc.data();
 
-    console.log(`✅ Found ride: ${rideDoc.id}`);
-    console.log(`📊 Ride status: ${ride.status}`);
-
     const dropLat = ride.to?.point?.geopoint?.latitude;
     const dropLng = ride.to?.point?.geopoint?.longitude;
 
-    console.log(`🎯 Drop location: ${dropLat}, ${dropLng}`);
-
     if (!dropLat || !dropLng) {
-      console.log("❌ No drop location in ride");
+      console.log("❌ No drop location");
       return;
     }
 
@@ -82,51 +70,33 @@ async function checkDriverSafety(driverId, driverData) {
 
     console.log(`📏 Distance from drop: ${distance.toFixed(2)}m`);
 
+    // ✅ Safe zone
     if (distance <= 1000) {
-      console.log("✅ Driver within safe range (≤ 1000m)");
+      console.log("✅ Driver within safe range");
       return;
     }
 
-    console.log(`⚠️ Driver is ${distance.toFixed(2)}m away from drop!`);
-
-    const alertCount = ride.safety_alert_count || 0;
-    console.log(`🔢 Current alert count: ${alertCount}`);
-
-    if (alertCount >= 2) {
-      console.log("⛔ Alert limit reached (2 alerts already sent)");
-      return;
-    }
-
-    // ✅ NEW: Check if we recently sent an alert for this ride (within 2 minutes)
-    const rideId = rideDoc.id;
-    const now = Date.now();
-    const lastAlert = lastAlertTime.get(rideId);
-    
-    if (lastAlert && (now - lastAlert) < 120000) { // 2 minutes
-      const secondsSince = Math.round((now - lastAlert) / 1000);
-      console.log(`⏰ Alert sent ${secondsSince}s ago - skipping duplicate`);
+    // 🛑 VERY IMPORTANT — SEND ONLY ONCE PER RIDE
+    if (ride.safety_flag === true) {
+      console.log("⛔ Safety alert already sent for this ride — skipping");
       return;
     }
 
     console.log("🚨 TRIGGERING SAFETY ALERT!");
 
-    // ✅ Record alert time BEFORE sending (prevent race conditions)
-    lastAlertTime.set(rideId, now);
-
-    await sendSafetyAlert(rideId);
+    await sendSafetyAlert(rideDoc.id);
 
     await rideDoc.ref.update({
       safety_flag: true,
       safety_reason: "Driver deviated from drop",
       safety_time: new Date(),
-      safety_alert_count: alertCount + 1,
+      safety_alert_count: 1,
     });
 
-    console.log("✅ Firestore updated with safety alert");
-    console.log(`📊 New alert count: ${alertCount + 1}`);
+    console.log("✅ Safety alert stored in Firestore");
+
   } catch (err) {
     console.error("❌ Realtime safety error:", err);
-    console.error("Stack:", err.stack);
   }
 }
 
@@ -141,9 +111,8 @@ function startSafetyListener() {
     .onSnapshot(
       (snapshot) => {
         console.log(`📡 Snapshot received: ${snapshot.docs.length} drivers`);
-        
+
         snapshot.docChanges().forEach((change) => {
-          // ✅ ONLY process on "modified" type (location updates)
           if (change.type === "modified") {
             const driverId = change.doc.id;
             const driverData = change.doc.data();
@@ -159,7 +128,7 @@ function startSafetyListener() {
         console.error("❌ Snapshot listener error:", error);
       }
     );
-  
+
   console.log("✅ Safety listener active");
 }
 
