@@ -7,7 +7,7 @@ const mongodb = require('mongodb');
 const adminRoutes = require("./routes/admin.routes");
 const { monitorRideSafety } = require("./services/rideSafety.service");
 const connectDB = require('./config/db');
-const { monitorRideSafety } = require("./services/rideSafety.service");
+
 
 console.log('🟢 server.js loaded');
 console.log('👉 Mongoose version:', mongoose.version);
