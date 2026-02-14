@@ -19,6 +19,9 @@ function distanceMeters(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// ✅ ADD: Track last alert time per ride to prevent duplicates
+const lastAlertTime = new Map();
+
 // ===============================
 // 🚨 REALTIME SAFETY CHECK
 // ===============================
@@ -36,8 +39,6 @@ async function checkDriverSafety(driverId, driverData) {
       return;
     }
 
-    // ✅ FIXED: Use user reference instead of driver reference
-    // The accepted_by field points to /users collection
     const userRef = db.doc(`users/${driverId}`);
     
     console.log(`🔎 Looking for started rides for user ${driverId}...`);
@@ -96,9 +97,23 @@ async function checkDriverSafety(driverId, driverData) {
       return;
     }
 
+    // ✅ NEW: Check if we recently sent an alert for this ride (within 2 minutes)
+    const rideId = rideDoc.id;
+    const now = Date.now();
+    const lastAlert = lastAlertTime.get(rideId);
+    
+    if (lastAlert && (now - lastAlert) < 120000) { // 2 minutes
+      const secondsSince = Math.round((now - lastAlert) / 1000);
+      console.log(`⏰ Alert sent ${secondsSince}s ago - skipping duplicate`);
+      return;
+    }
+
     console.log("🚨 TRIGGERING SAFETY ALERT!");
 
-    await sendSafetyAlert(rideDoc.id);
+    // ✅ Record alert time BEFORE sending (prevent race conditions)
+    lastAlertTime.set(rideId, now);
+
+    await sendSafetyAlert(rideId);
 
     await rideDoc.ref.update({
       safety_flag: true,
@@ -121,7 +136,6 @@ async function checkDriverSafety(driverId, driverData) {
 function startSafetyListener() {
   console.log("🚀 Starting realtime safety listener...");
 
-  // ✅ OPTION A: Filter only by current_ride_id (recommended)
   db.collection("drivers")
     .where("current_ride_id", "!=", null)
     .onSnapshot(
@@ -129,11 +143,11 @@ function startSafetyListener() {
         console.log(`📡 Snapshot received: ${snapshot.docs.length} drivers`);
         
         snapshot.docChanges().forEach((change) => {
+          // ✅ ONLY process on "modified" type (location updates)
           if (change.type === "modified") {
             const driverId = change.doc.id;
             const driverData = change.doc.data();
 
-            // ✅ Filter isActive in code instead
             if (driverData.isActive === false) {
               console.log(`🔄 Driver ${driverId} location updated`);
               checkDriverSafety(driverId, driverData);
