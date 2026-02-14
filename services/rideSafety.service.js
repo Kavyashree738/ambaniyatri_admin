@@ -1,7 +1,6 @@
 const { db } = require("../config/firebaseAdmin");
 const { sendSafetyAlert } = require("./fcm.service");
 
-//
 // ===============================
 // 📏 Distance Calculator
 // ===============================
@@ -20,118 +19,134 @@ function distanceMeters(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-let running = false;
-
-//
 // ===============================
-// 🚨 SAFETY MONITOR
+// 🚨 REALTIME SAFETY CHECK
 // ===============================
-async function monitorRideSafety() {
-  if (running) {
-    console.log("⏳ Monitor already running — skip");
-    return;
-  }
-
-  running = true;
-
+async function checkDriverSafety(driverId, driverData) {
   try {
-    console.log("\n==============================");
-    console.log("🛡 SAFETY MONITOR STARTED");
-    console.log("==============================");
+    console.log(`\n🔍 Checking safety for driver: ${driverId}`);
+    
+    const driverLat = driverData.point?.geopoint?.latitude;
+    const driverLng = driverData.point?.geopoint?.longitude;
 
-    const ridesSnap = await db
-      .collection("rides")
-      .where("status", "==", "started")
-      .get();
+    console.log(`📍 Driver location: ${driverLat}, ${driverLng}`);
 
-    console.log("📦 Active rides found:", ridesSnap.docs.length);
-
-    for (const rideDoc of ridesSnap.docs) {
-      const ride = rideDoc.data();
-
-      console.log("\n🚕 Checking ride:", rideDoc.id);
-
-      if (!ride.accepted_by) {
-        console.log("❌ No driver reference");
-        continue;
-      }
-
-      const driverDoc = await db
-        .collection("drivers")
-        .doc(ride.accepted_by.id)
-        .get();
-
-      if (!driverDoc.exists) {
-        console.log("❌ Driver doc missing");
-        continue;
-      }
-
-      const driver = driverDoc.data();
-
-      const driverLat = driver.point?.geopoint?.latitude;
-      const driverLng = driver.point?.geopoint?.longitude;
-
-      const dropLat = ride.to?.point?.geopoint?.latitude;
-      const dropLng = ride.to?.point?.geopoint?.longitude;
-
-      if (!driverLat || !driverLng || !dropLat || !dropLng) {
-        console.log("⚠ Missing GPS — skipping");
-        continue;
-      }
-
-      const distance = distanceMeters(
-        driverLat,
-        driverLng,
-        dropLat,
-        dropLng
-      );
-
-      console.log("📏 Distance:", distance, "meters");
-
-      if (distance <= 1000) {
-        console.log("✅ Driver safe");
-        continue;
-      }
-
-      console.log("🚨 SAFETY ALERT CONDITION MET");
-
-      // =========================
-      // ALERT LIMIT LOGIC
-      // =========================
-      const alertCount = ride.safety_alert_count || 0;
-
-      console.log("🔢 Current alert count:", alertCount);
-
-      if (alertCount >= 2) {
-        console.log("⛔ Alert limit reached — skipping notification");
-        continue;
-      }
-
-      console.log("📢 Sending admin notification…");
-
-      await sendSafetyAlert(rideDoc.id);
-
-      console.log("✅ Notification sent");
-
-      // =========================
-      // Update Firestore
-      // =========================
-      await rideDoc.ref.update({
-        safety_flag: true,
-        safety_reason: "Driver deviated from drop",
-        safety_time: new Date(),
-        safety_alert_count: alertCount + 1,
-      });
-
-      console.log("🔥 Firestore updated with alert count");
+    if (!driverLat || !driverLng) {
+      console.log("❌ No driver location available");
+      return;
     }
 
-    console.log("\n🟢 SAFETY MONITOR FINISHED\n");
-  } catch (err) {
-    console.error("❌ SAFETY ERROR:", err);
-  }
+    // ✅ FIXED: Use user reference instead of driver reference
+    // The accepted_by field points to /users collection
+    const userRef = db.doc(`users/${driverId}`);
+    
+    console.log(`🔎 Looking for started rides for user ${driverId}...`);
 
-  running = false;
+    const rideSnap = await db
+      .collection("rides")
+      .where("accepted_by", "==", userRef)
+      .where("status", "==", "started")
+      .limit(1)
+      .get();
+
+    console.log(`📦 Found ${rideSnap.docs.length} started ride(s)`);
+
+    if (rideSnap.empty) {
+      console.log("⚠️ No started ride found for this driver");
+      return;
+    }
+
+    const rideDoc = rideSnap.docs[0];
+    const ride = rideDoc.data();
+
+    console.log(`✅ Found ride: ${rideDoc.id}`);
+    console.log(`📊 Ride status: ${ride.status}`);
+
+    const dropLat = ride.to?.point?.geopoint?.latitude;
+    const dropLng = ride.to?.point?.geopoint?.longitude;
+
+    console.log(`🎯 Drop location: ${dropLat}, ${dropLng}`);
+
+    if (!dropLat || !dropLng) {
+      console.log("❌ No drop location in ride");
+      return;
+    }
+
+    const distance = distanceMeters(
+      driverLat,
+      driverLng,
+      dropLat,
+      dropLng
+    );
+
+    console.log(`📏 Distance from drop: ${distance.toFixed(2)}m`);
+
+    if (distance <= 1000) {
+      console.log("✅ Driver within safe range (≤ 1000m)");
+      return;
+    }
+
+    console.log(`⚠️ Driver is ${distance.toFixed(2)}m away from drop!`);
+
+    const alertCount = ride.safety_alert_count || 0;
+    console.log(`🔢 Current alert count: ${alertCount}`);
+
+    if (alertCount >= 2) {
+      console.log("⛔ Alert limit reached (2 alerts already sent)");
+      return;
+    }
+
+    console.log("🚨 TRIGGERING SAFETY ALERT!");
+
+    await sendSafetyAlert(rideDoc.id);
+
+    await rideDoc.ref.update({
+      safety_flag: true,
+      safety_reason: "Driver deviated from drop",
+      safety_time: new Date(),
+      safety_alert_count: alertCount + 1,
+    });
+
+    console.log("✅ Firestore updated with safety alert");
+    console.log(`📊 New alert count: ${alertCount + 1}`);
+  } catch (err) {
+    console.error("❌ Realtime safety error:", err);
+    console.error("Stack:", err.stack);
+  }
 }
 
-module.exports = { monitorRideSafety };
+// ===============================
+// 👂 START REALTIME LISTENER
+// ===============================
+function startSafetyListener() {
+  console.log("🚀 Starting realtime safety listener...");
+
+  // ✅ OPTION A: Filter only by current_ride_id (recommended)
+  db.collection("drivers")
+    .where("current_ride_id", "!=", null)
+    .onSnapshot(
+      (snapshot) => {
+        console.log(`📡 Snapshot received: ${snapshot.docs.length} drivers`);
+        
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "modified") {
+            const driverId = change.doc.id;
+            const driverData = change.doc.data();
+
+            // ✅ Filter isActive in code instead
+            if (driverData.isActive === false) {
+              console.log(`🔄 Driver ${driverId} location updated`);
+              checkDriverSafety(driverId, driverData);
+            }
+          }
+        });
+      },
+      (error) => {
+        console.error("❌ Snapshot listener error:", error);
+      }
+    );
+  
+  console.log("✅ Safety listener active");
+}
+
+module.exports = { startSafetyListener };
