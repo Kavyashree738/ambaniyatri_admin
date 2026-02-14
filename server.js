@@ -111,6 +111,14 @@ app.get('/', (req, res) => {
 /* ===============================
    ❌ 404 FALLBACK
 ================================ */
+
+app.use((req, res, next) => {
+  console.log("🌍 Origin:", req.headers.origin);
+  console.log("📡 Referer:", req.headers.referer);
+  console.log("🖥 User-Agent:", req.headers["user-agent"]);
+  next();
+});
+ 
 app.use((req, res) => {
   console.log('❌ FALLBACK 404 HIT →', req.method, req.url);
   res.status(404).json({ message: 'Not found' });
