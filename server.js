@@ -7,7 +7,10 @@ const mongodb = require('mongodb');
 const adminRoutes = require("./routes/admin.routes");
 const { startSafetyListener } = require("./services/rideSafety.service");
 const connectDB = require('./config/db');
-
+const http = require("http");
+const { Server } = require("socket.io");
+const initChat = require("./socket/chat")
+const chatRoutes = require("./routes/chat.routes");
 
 console.log('🟢 server.js loaded');
 console.log('👉 Mongoose version:', mongoose.version);
@@ -74,7 +77,7 @@ app.use('/api/media', require('./routes/media'));
 app.use("/api/adminrides", adminRoutes);
 
 
-
+app.use("/chat", chatRoutes)
 
 
 /* ===============================
@@ -125,6 +128,17 @@ app.use((req, res) => {
   console.log('❌ FALLBACK 404 HIT →', req.method, req.url);
   res.status(404).json({ message: 'Not found' });
 });
+
+const server = http.createServer(app);
+
+// ✅ socket.io
+const io = new Server(server, {
+  cors: { origin: "*" },
+});
+
+// initialize chat logic
+initChat(io);
+
 
 /* ===============================
    🚀 START SERVER
