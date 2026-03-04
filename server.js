@@ -132,13 +132,24 @@ app.use((req, res) => {
 const server = http.createServer(app);
 
 // ✅ socket.io
+// ✅ socket.io
 const io = new Server(server, {
   cors: { origin: "*" },
+  transports: ["websocket", "polling"],  // 🔴 ADD
+  pingTimeout: 60000,                    // 🔴 ADD
+  pingInterval: 25000,                   // 🔴 ADD
+});
+
+// 🔴 ADD — debug engine errors
+io.engine.on("connection_error", (err) => {
+  console.log("❌ ENGINE CONNECTION ERROR:");
+  console.log("  code:", err.code);
+  console.log("  message:", err.message);
+  console.log("  context:", err.context);
 });
 
 // initialize chat logic
 initChat(io);
-
 
 /* ===============================
    🚀 START SERVER
